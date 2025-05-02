@@ -13,22 +13,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if chat_id != ADMIN_ID:
         user_ids.add(chat_id)
-        # Check if message is a sticker
-        if update.message.sticker:
-            await context.bot.send_sticker(chat_id=ADMIN_ID, sticker=update.message.sticker.file_id)
-        # Check if message is text
-        elif update.message.text:
+        # Forward text message to admin
+        if update.message.text:
             await context.bot.send_message(chat_id=ADMIN_ID, text=update.message.text)
     else:
         failed = 0
         for uid in user_ids:
             try:
                 await context.bot.send_chat_action(chat_id=uid, action="typing")
-                # If it's a sticker, send it
-                if update.message.sticker:
-                    await context.bot.send_sticker(chat_id=uid, sticker=update.message.sticker.file_id)
-                # If it's a text message, send it
-                elif update.message.text:
+                # Forward text message to users
+                if update.message.text:
                     await context.bot.send_message(chat_id=uid, text=update.message.text)
             except:
                 failed += 1
@@ -36,6 +30,5 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 app.add_handler(MessageHandler(filters.TEXT, handle_message))
-app.add_handler(MessageHandler(filters.STICKER, handle_message))  # Added sticker filter separately
 
 app.run_polling()
