@@ -1,4 +1,4 @@
-from telegram import Update, Bot
+from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes, CommandHandler
 import os
 
