@@ -1,29 +1,37 @@
 from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes, CommandHandler
+from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 import os
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
-user_map = {}
+user_ids = set()
 
-async def forward_to_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.message.from_user
-    user_map[user.id] = user.username or user.first_name
-    msg = f"From @{user.username or user.first_name} (ID: {user.id}):\n{update.message.text}"
-    await context.bot.send_message(chat_id=ADMIN_ID, text=msg)
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global user_ids
+    chat_id = update.message.chat_id
 
-async def reply_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        parts = update.message.text.split(" ", 2)
-        target_id = int(parts[1])
-        reply_text = parts[2]
-        await context.bot.send_message(chat_id=target_id, text=f"Admin:\n{reply_text}")
-    except:
-        await update.message.reply_text("Usage: /reply <user_id> <message>")
+    if chat_id != ADMIN_ID:
+        user_ids.add(chat_id)
+        # Forward stickers or text to admin
+        if update.message.sticker:
+            await context.bot.send_sticker(chat_id=ADMIN_ID, sticker=update.message.sticker.file_id)
+        elif update.message.text:
+            await context.bot.send_message(chat_id=ADMIN_ID, text=update.message.text)
+    else:
+        failed = 0
+        for uid in user_ids:
+            try:
+                await context.bot.send_chat_action(chat_id=uid, action="typing")
+                if update.message.sticker:
+                    await context.bot.send_sticker(chat_id=uid, sticker=update.message.sticker.file_id)
+                elif update.message.text:
+                    await context.bot.send_message(chat_id=uid, text=update.message.text)
+            except:
+                failed += 1
+        await update.message.reply_text(f"Sent to {len(user_ids)-failed} users, failed: {failed}")
 
 app = ApplicationBuilder().token(BOT_TOKEN).build()
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, forward_to_admin))
-app.add_handler(CommandHandler("reply", reply_command))
+app.add_handler(MessageHandler(filters.TEXT | filters.Sticker, handle_message))
 
 app.run_polling()
