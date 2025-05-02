@@ -1,5 +1,6 @@
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, CommandHandler, ContextTypes
+from datetime import datetime
 import os
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -7,20 +8,41 @@ ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
 user_data = {}  # user_id: (name, username)
 
+# Save user to file
+def save_user(user_id, name, username):
+    line = f"{user_id} | {name} | @{username if username else 'No Username'}\n"
+    if not os.path.exists("users.txt") or line not in open("users.txt").read():
+        with open("users.txt", "a") as f:
+            f.write(line)
+
+# Log messages
+def log_message(user_id, name, username, message):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_line = f"{timestamp} | {user_id} | {name} | @{username if username else 'No Username'} | {message}\n"
+    with open("messages.txt", "a") as f:
+        f.write(log_line)
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
     user = update.message.from_user
 
     if chat_id != ADMIN_ID:
-        # Store user data
-        user_data[chat_id] = (user.full_name, user.username)
-
-        # Forward message to admin with details
         name = user.full_name
-        username = f"@{user.username}" if user.username else "No Username"
-        user_info = f"[{name}]({username}) (ID: `{chat_id}`)"
-        msg_text = update.message.text
-        forward_text = f"**New Message from:**\n{user_info}\n\n**Message:**\n{msg_text}"
+        username = user.username
+        user_data[chat_id] = (name, username)
+        save_user(chat_id, name, username)
+
+        # Forward message to admin with clean format
+        username_text = f"@{username}" if username else "No Username"
+        forward_text = (
+            f"**New Message from:**\n"
+            f"Name: {name}\n"
+            f"Username: {username_text}\n"
+            f"User ID: `{chat_id}`\n\n"
+            f"**Message:**\n{update.message.text}"
+        )
+
+        log_message(chat_id, name, username, update.message.text)
 
         await context.bot.send_message(chat_id=ADMIN_ID, text=forward_text, parse_mode="Markdown")
     else:
