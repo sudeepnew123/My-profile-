@@ -32,6 +32,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Sent to {len(user_ids)-failed} users, failed: {failed}")
 
 app = ApplicationBuilder().token(BOT_TOKEN).build()
-app.add_handler(MessageHandler(filters.TEXT | filters.Sticker, handle_message))
+app.add_handler(MessageHandler(filters.TEXT | filters.STICKER, handle_message))
 
 app.run_polling()
